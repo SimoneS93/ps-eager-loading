@@ -6,6 +6,34 @@
 class SpecificPrice extends SpecificPriceCore {
     
     /**
+     * Implement Eager loading
+     * @param int $id_product
+     * @return array
+     */
+    public static function getPriority($id_product)
+    {
+		if (!Context::getContext()->controller instanceof CategoryController)
+			return parent::getPriority($id_product);
+		
+        if (!SpecificPrice::isFeatureActive())
+                return explode(';', Configuration::get('PS_SPECIFIC_PRICE_PRIORITIES'));
+        
+        $query = (new DbQueryEager(__METHOD__))
+                ->addEagerParam('id_product', $id_product)
+                ->from('specific_price_priority')
+                //reverse ordering so later records will override the former ones
+                ->orderBy('id_specific_price_priority ASC');
+        $priority = $query->value('priority');
+        
+        if (!$priority) {
+            $priority = Configuration::get('PS_SPECIFIC_PRICE_PRIORITIES');
+        }
+        
+        $priority = 'id_customer;'.$priority;
+        return preg_split('/;/', $priority);
+    }
+    
+    /**
      * Implements Eager loading
      * @param int $id_product
      * @param int $id_shop
@@ -20,7 +48,10 @@ class SpecificPrice extends SpecificPriceCore {
      * @return float
      */
     public static function getSpecificPrice($id_product, $id_shop, $id_currency, $id_country, $id_group, $quantity, $id_product_attribute = null, $id_customer = 0, $id_cart = 0, $real_quantity = 0) {
-        if (!SpecificPrice::isFeatureActive())
+        if (!Context::getContext()->controller instanceof CategoryController)
+            return parent::getSpecificPrice ($id_product, $id_shop, $id_currency, $id_country, $id_group, $quantity, $id_product_attribute, $id_customer, $id_cart, $real_quantity);
+        
+		if (!SpecificPrice::isFeatureActive())
             return [];
         
         //on slow servers, $now may change if request take longer than 1s if referred to time()
