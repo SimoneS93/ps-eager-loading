@@ -2,6 +2,7 @@
 
 /**
  * Implement Eager loading
+ * Needs the DbQuery override
  * @author Salerno Simone
  */
 class DbQueryEager extends DbQuery {
