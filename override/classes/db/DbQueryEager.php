@@ -2,16 +2,11 @@
 
 /**
  * Implement Eager loading
- * Needs the DbQuery override
  * @author Salerno Simone
  */
 class DbQueryEager extends DbQuery {
-    const KEEP_ALL = 1;
-    const KEEP_LAST = 2;
-    public static $CACHE_STRATEGY = 1;
-    
     /**
-     * Uniqeu id used to identify records in the cache
+     * Unique id used to identify records in the cache
      * @var string
      */
     private $id;
@@ -42,6 +37,16 @@ class DbQueryEager extends DbQuery {
     }
     
     /**
+     * Turn on / off early delete
+     * @param bool $on
+     * @return \DbQueryEager
+     */
+    public function setEarlyDelete($on) {
+        $this->earlyDelete = (bool)$on;
+        return $this;
+    }
+
+    /**
      * @see DbQuery::getRow()
      * actually implements eager loading
      * @return array
@@ -54,17 +59,22 @@ class DbQueryEager extends DbQuery {
             $results = Db::getInstance()->executeS($this);
             !$results && $results = [];
             $indexed = $this->indexResults($results);
-            //empty cache if using KEEP_LAST strategy
-            //@todo not working for KEEP_LAST
-            if (static::$CACHE_STRATEGY === static::KEEP_LAST)
-                $cache = [];
-            
+            #$this->d([$this->build (), $indexed]);
+            #print '<pre>'; print_r([$this->id, $indexed]); print '</pre>';
             $cache[$this->id] = $indexed;
             Cache::store(__CLASS__, $cache);
         }
         
         $currentIndex = $this->makeIndexFromValues(array_values($this->params));
-        return isset($cache[$this->id][$currentIndex]) ? $cache[$this->id][$currentIndex] : [];
+        
+        #print "<pre>trying accessing {$this->id} - {$currentIndex}</pre>";
+        if (isset($cache[$this->id][$currentIndex])) {
+            #print "<pre>accessed</pre>";
+            $value = $cache[$this->id][$currentIndex];
+            return $value;
+        }
+        
+        return [];
     }
     
     /**
@@ -86,7 +96,9 @@ class DbQueryEager extends DbQuery {
     public function value($name, array $params = []) {
         $this->select($name);
         $row = $this->row($params);
-        return $row && isset($row[$name]) ? $row[$name] : NULL;
+        //delete table prefix, if any
+        $key = preg_replace('/^[^.]+\./', '', $name);
+        return $row && isset($row[$key]) ? $row[$key] : NULL;
     }
     
     /**
@@ -119,5 +131,9 @@ class DbQueryEager extends DbQuery {
         $keys = array_map([$this, 'makeIndexFromRow'], $results);
         $values = array_values($results);
         return array_combine($keys, $values);
+    }
+    
+    private function d($var) {
+        if ($this->id === 'DEBUG') d($var);
     }
 }
