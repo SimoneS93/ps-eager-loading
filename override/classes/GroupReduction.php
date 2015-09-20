@@ -11,6 +11,9 @@ class GroupReduction extends GroupReductionCore {
      * @param int $id_group
      */
     public static function getValueForProduct($id_product, $id_group) {
+        if (!Context::getContext()->controller instanceof CategoryController)
+            return parent::getValueForProduct ($id_product, $id_group);
+            
         //$id_group is "static" for each requests
         //$id_product changes on every call -> eager param
         $query = (new DbQueryEager(__METHOD__))
